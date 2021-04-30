@@ -20,14 +20,24 @@ class TestDaily744(unittest.TestCase):
         c = LeastFrequentlyUsedCache(2)
         c.set("a", 1)
         c.set("b", 2)
-
+        print(c.queue)
         self.assertEqual(1, c.get("a"))
+        print(c.queue)
         self.assertEqual(2, c.get("b"))
         self.assertIsNone(c.get("c"))
+        print(c.queue)
         c.set("c", 3)
         self.assertIsNone(c.get("a"))
         self.assertEqual(2, c.get("b"))
         self.assertEqual(3, c.get("c"))
+        print(c.queue)
+        c.set('d', 4)
+        self.assertIsNone(c.get("a"))
+        self.assertEqual(2, c.get("b"))
+        self.assertIsNone(c.get("c"))
+        self.assertEqual(4, c.get("d"))
+        print(c.queue)
+
 
 
 class LeastFrequentlyUsedCache:
@@ -37,7 +47,7 @@ class LeastFrequentlyUsedCache:
         self.queue = LeastFrequentUseQueue()
 
     def __str__(self):
-        return str(self.cache)
+        return 'LFRUC(%s)' % ', '.join((('%s: %s' % (str(k), str(v))) for k, v in self.cache.items()))
 
     def set(self, key, value):
         if key in self.cache:
@@ -67,6 +77,8 @@ class CacheEntry:
         self.key = key
         self.value = value
 
+    def __str__(self):
+        return "CacheEntry(%s, %s, usage=%d)" % (self.key, self.value, self.usagecount)
 
 class UsageQueue:
     """double linked list of entries with same usage count, oldest first"""
@@ -76,6 +88,14 @@ class UsageQueue:
         self.lastentry = None
         self.nextqueue = None
         self.prevqueue = None
+
+    def __str__(self):
+        s = 'UsageQueue[usagecount: %d' % self.usagecount
+        c = self.firstentry
+        while c:
+            s += ', ' + str(c)
+            c = c.next
+        return s + ']'
 
     def add(self, entry: CacheEntry):
         if self.firstentry is None:
@@ -95,6 +115,8 @@ class UsageQueue:
             entry.prev.next = entry.next
             if entry.next:
                 entry.next.prev = entry.prev
+        entry.next = None
+        entry.prev = None
 
     def remove_first(self):
         if self.firstentry is None:
@@ -116,6 +138,14 @@ class LeastFrequentUseQueue:
         self.firstqueue = None
         self.lastqueue = None
         self.queues = dict()
+
+    def __str__(self):
+        s = 'LeastFrequentUseQueue['
+        c = self.firstqueue
+        while c:
+            s += '\n\t' + str(c)
+            c = c.nextqueue
+        return s + '\n]'
 
     def add(self, entry):
         """create a new value that has been added to the cache"""
@@ -157,6 +187,7 @@ class LeastFrequentUseQueue:
     def access(self, entry: CacheEntry):
         """a value has been read so increase access count"""
         q = self.queues[entry.usagecount]
+        q.remove(entry)
         entry.usagecount += 1
         if entry.usagecount in self.queues:
             qnew = self.queues[entry.usagecount]
